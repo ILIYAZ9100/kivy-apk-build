@@ -12,31 +12,73 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Fetch full history (optional, helps with some cache issues)
+          fetch-depth: 0
 
       - name: Set up Python 3.9
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Install dependencies
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-dev \
+            build-essential \
+            openjdk-17-jdk \
+            zlib1g-dev \
+            libncurses5-dev \
+            libgdbm-dev \
+            libnss3-dev \
+            libssl-dev \
+            libsqlite3-dev \
+            libreadline-dev \
+            libffi-dev \
+            libbz2-dev
+
+      - name: Install Buildozer and dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install buildozer
+          pip install cython==0.29.36 buildozer
 
-      - name: Initialize Buildozer
-        run: buildozer init
+      - name: Initialize Buildozer (if needed)
+        run: |
+          if [ ! -f buildozer.spec ]; then
+            buildozer init
+            # Apply optimized buildozer.spec configuration
+            curl -o buildozer.spec https://gist.githubusercontent.com/example/optimized-buildozer-spec/raw/main/buildozer.spec
+          fi
 
-      - name: Build APK (this will take time!)
-        run: buildozer -v android debug
+      - name: Build APK
+        run: |
+          buildozer -v android debug
+          # Check if APK was built successfully
+          if [ ! -f bin/*.apk ]; then
+            echo "APK build failed!"
+            cat .buildozer/android/platform/build-armeabi-v7a/dists/myapp/build/outputs/apk/debug/*.log
+            exit 1
+          fi
 
-      - name: List built files (for debugging)
-        run: ls -la bin/
+      - name: Verify APK
+        run: |
+          echo "Built APK details:"
+          ls -lh bin/*.apk
+          aapt dump badging bin/*.apk | grep -E "package:|launchable-activity:"
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4  # Updated to v4 for reliability
+        uses: actions/upload-artifact@v4
         with:
-          name: build-output
-          path: bin/
+          name: app-release
+          path: bin/*.apk
           if-no-files-found: error
+          retention-days: 5
+
+      - name: Upload build logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-logs
+          path: |
+            .buildozer/android/platform/build-armeabi-v7a/dists/myapp/build/outputs/apk/debug/*.log
+            buildozer.spec
           retention-days: 5
