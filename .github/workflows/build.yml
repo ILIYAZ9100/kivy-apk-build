@@ -31,7 +31,7 @@ jobs:
         run: buildozer -v android debug
 
       - name: Upload APK artifact
-       uses: actions/upload-artifact@v2
+       uses: actions/upload-artifact@<commit-sha>
         with:
           name: apk
           path: bin/*.apk
