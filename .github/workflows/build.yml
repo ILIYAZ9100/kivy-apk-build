@@ -37,40 +37,49 @@ jobs:
             zip \
             wget
 
-          # Install Java 11 alongside Java 17 for Android SDK compatibility
           sudo apt-get install -y openjdk-11-jdk
           sudo update-java-alternatives --set java-1.11.0-openjdk-amd64
           echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> $GITHUB_ENV
 
       - name: Set up Android SDK
         run: |
+          # Create Android SDK directory
           mkdir -p $ANDROID_HOME
           cd $ANDROID_HOME
+          
+          # Download and extract command line tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools-linux-*.zip
           rm commandlinetools-linux-*.zip
-          # Correct directory structure for cmdline-tools
+          
+          # Create proper directory structure (NEW FIX)
           mkdir -p cmdline-tools/latest
-          mv tools/* cmdline-tools/latest/
-          rm -rf tools
+          mv * cmdline-tools/latest/ 2>/dev/null || true
+          
+          # Set PATH for Android tools
           echo "$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0" >> $GITHUB_PATH
 
       - name: Install Android components
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platform-tools"
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0"
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-34"
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25b"
+          # Accept licenses first
+          mkdir -p ~/.android
+          touch ~/.android/repositories.cfg
+          
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          
+          # Install required components
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34" "ndk;25b"
 
       - name: Verify Android tools
         run: |
           echo "Android tools:"
-          ls $ANDROID_HOME/build-tools/34.0.0/
-          echo "Aidl path:"
-          ls $ANDROID_HOME/build-tools/34.0.0/aidl
+          ls -la $ANDROID_HOME/cmdline-tools/latest/bin/
+          echo "Build tools:"
+          ls -la $ANDROID_HOME/build-tools/34.0.0/
+          echo "Aidl exists:"
+          [ -f $ANDROID_HOME/build-tools/34.0.0/aidl ] && echo "Yes" || echo "No"
 
-      - name: Install Buildozer dependencies
+      - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
           pip install cython==0.29.36 buildozer
