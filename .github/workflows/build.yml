@@ -46,19 +46,29 @@ jobs:
         run: |
           mkdir -p $ANDROID_HOME
           cd $ANDROID_HOME
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip commandlinetools-linux-*.zip
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-*.zip
           rm commandlinetools-linux-*.zip
-          mkdir cmdline-tools
-          mv tools cmdline-tools/latest
+          # Correct directory structure for cmdline-tools
+          mkdir -p cmdline-tools/latest
+          mv tools/* cmdline-tools/latest/
+          rm -rf tools
           echo "$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0" >> $GITHUB_PATH
 
       - name: Install Android components
         run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platform-tools"
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0"
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-34"
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25b"
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+
+      - name: Verify Android tools
+        run: |
+          echo "Android tools:"
+          ls $ANDROID_HOME/build-tools/34.0.0/
+          echo "Aidl path:"
+          ls $ANDROID_HOME/build-tools/34.0.0/aidl
 
       - name: Install Buildozer dependencies
         run: |
