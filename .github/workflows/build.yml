@@ -1,17 +1,88 @@
-      - name: Initialize Buildozer environment
+name: Build APK
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  ANDROID_HOME: /usr/local/lib/android/sdk
+  ANDROID_NDK_VERSION: 25.2.9519653
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install system dependencies
         run: |
-          # Completely remove any existing spec file to start fresh
-          rm -f buildozer.spec
-          
-          # Initialize a brand new spec file
-          buildozer init
-          
-          # Create a clean new spec file with our exact configuration
-          cat << 'EOF' > buildozer.spec
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-dev \
+            build-essential \
+            openjdk-17-jdk \
+            zlib1g-dev \
+            libncurses5-dev \
+            libgdbm-dev \
+            libnss3-dev \
+            libssl-dev \
+            libsqlite3-dev \
+            libreadline-dev \
+            libffi-dev \
+            libbz2-dev \
+            unzip \
+            zip \
+            wget \
+            git \
+            cmake
+
+          sudo update-java-alternatives --set java-1.17.0-openjdk-amd64
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+
+      - name: Set up Android SDK
+        run: |
+          mkdir -p $ANDROID_HOME
+          cd $ANDROID_HOME
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-*.zip
+          rm commandlinetools-linux-*.zip
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/* cmdline-tools/latest/ || true
+          mv lib/ cmdline-tools/latest/ || true
+          mv bin/ cmdline-tools/latest/ || true
+          mv NOTICE.txt cmdline-tools/latest/ || true
+          mv source.properties cmdline-tools/latest/ || true
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0" >> $GITHUB_PATH
+
+      - name: Install Android components
+        run: |
+          mkdir -p ~/.android
+          touch ~/.android/repositories.cfg
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null 2>&1
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34" "cmake;3.22.1"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;$ANDROID_NDK_VERSION"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> $GITHUB_ENV
+
+      - name: Install Buildozer and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir cython==0.29.36 buildozer python-for-android
+
+      - name: Create fresh buildozer.spec
+        run: |
+          # Create brand new spec file with our exact configuration
+          cat > buildozer.spec << 'EOL'
 [app]
-title = My Application
+title = MyApp
 package.name = myapp
-package.domain = org.example
+package.domain = org.test
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 0.1
@@ -32,19 +103,34 @@ android.minapi = 21
 android.ndk_api = 21
 android.arch = arm64-v8a
 android.permissions = INTERNET
-android.allow_backup = True
-android.accept_sdk_license = True
-EOF
-
-          # Replace environment variables in the spec file
+EOL
+          # Substitute environment variables
           sed -i "s|\$ANDROID_NDK_HOME|$ANDROID_NDK_HOME|g" buildozer.spec
           sed -i "s|\$ANDROID_HOME|$ANDROID_HOME|g" buildozer.spec
-          
-          # Verify the file was created correctly
-          echo "=== buildozer.spec contents ==="
+          echo "=== buildozer.spec ==="
           cat buildozer.spec
-          echo "=== File size ==="
-          ls -la buildozer.spec
-          
-          # Initialize the environment
-          buildozer android update || true
+
+      - name: Build APK
+        run: |
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0
+          buildozer -v android debug 2>&1 | tee build.log
+          if [ ! -f bin/*.apk ]; then
+            echo "Build failed!"
+            exit 1
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: bin/*.apk
+          if-no-files-found: error
+          retention-days: 5
+
+      - name: Upload build logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-logs
+          path: build.log
+          retention-days: 5
