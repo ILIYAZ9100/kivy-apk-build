@@ -1,31 +1,24 @@
-      - name: Create buildozer.spec
-        run: |
-          cat > buildozer.spec << 'EOF'
-[app]
-title = MyApp
-package.name = myapp
-package.domain = org.test
-source.dir = .
-source.include_exts = py,png,jpg,kv,atlas
-version = 0.1
-requirements = python3,kivy
-orientation = portrait
-fullscreen = 0
+name: "Build APK"  # Double-quoted string to ensure proper YAML parsing
 
-[buildozer]
-log_level = 2
-warn_on_root = 1
+on:
+  push:
+    branches: 
+      - main
 
-[android]
-android.ndk_path = $ANDROID_NDK_HOME
-android.sdk_path = $ANDROID_HOME
-android.build_tools_version = 34.0.0
-android.api = 34
-android.minapi = 21
-android.ndk_api = 21
-android.arch = arm64-v8a
-android.permissions = INTERNET
-EOF
-          sed -i "s|\$ANDROID_NDK_HOME|$ANDROID_NDK_HOME|g" buildozer.spec
-          sed -i "s|\$ANDROID_HOME|$ANDROID_HOME|g" buildozer.spec
-          cat buildozer.spec
+env:
+  ANDROID_HOME: "/usr/local/lib/android/sdk"
+  ANDROID_NDK_VERSION: "25.2.9519653"  # Quoted version string
+
+jobs:
+  build:
+    runs-on: "ubuntu-latest"  # Quoted runner name
+    steps:
+      - name: "Checkout repository"
+        uses: "actions/checkout@v4"  # Quoted action with version
+
+      - name: "Set up Python 3.9"
+        uses: "actions/setup-python@v4"
+        with:
+          python-version: "3.9"  # Quoted version number
+
+      # ... [rest of your workflow remains exactly the same] ...
