@@ -5,28 +5,70 @@
             buildozer init
           fi
           
-          # Update existing spec file without creating duplicates
-          if grep -q "^\[buildozer\]" buildozer.spec; then
-            # Update existing sections
-            sed -i '/^\[buildozer\]/,/^\[/ s/^log_level = .*/log_level = 2/' buildozer.spec
-            sed -i '/^\[android\]/,/^\[/ s/^android\.ndk_path = .*/android.ndk_path = $ANDROID_NDK_HOME/' buildozer.spec
-            sed -i '/^\[android\]/,/^\[/ s/^android\.sdk_path = .*/android.sdk_path = $ANDROID_HOME/' buildozer.spec
-            sed -i '/^\[android\]/,/^\[/ s/^android\.build_tools_version = .*/android.build_tools_version = 34.0.0/' buildozer.spec
-            sed -i '/^\[android\]/,/^\[/ s/^android\.api = .*/android.api = 34/' buildozer.spec
-            sed -i '/^\[android\]/,/^\[/ s/^android\.minapi = .*/android.minapi = 21/' buildozer.spec
-            sed -i '/^\[android\]/,/^\[/ s/^android\.ndk_api = .*/android.ndk_api = 21/' buildozer.spec
-            sed -i '/^\[android\]/,/^\[/ s/^android\.arch = .*/android.arch = arm64-v8a/' buildozer.spec
-          else
-            # Add sections if they don't exist
-            echo -e "\n[buildozer]\nlog_level = 2\n\n[android]" >> buildozer.spec
-            echo "android.ndk_path = $ANDROID_NDK_HOME" >> buildozer.spec
-            echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
-            echo "android.build_tools_version = 34.0.0" >> buildozer.spec
-            echo "android.api = 34" >> buildozer.spec
-            echo "android.minapi = 21" >> buildozer.spec
-            echo "android.ndk_api = 21" >> buildozer.spec
-            echo "android.arch = arm64-v8a" >> buildozer.spec
-          fi
+          # Backup original spec file
+          cp buildozer.spec buildozer.spec.bak
+          
+          # Create temporary file for new configuration
+          TEMP_FILE=$(mktemp)
+          
+          # Process the spec file to update or add sections
+          awk -v ndk_home="$ANDROID_NDK_HOME" -v sdk_home="$ANDROID_HOME" '
+          BEGIN { in_buildozer = 0; in_android = 0; buildozer_done = 0; android_done = 0 }
+          
+          /^\[buildozer\]/ {
+            in_buildozer = 1
+            print $0
+            print "log_level = 2"
+            next
+          }
+          
+          /^\[android\]/ {
+            in_android = 1
+            print $0
+            print "android.ndk_path = " ndk_home
+            print "android.sdk_path = " sdk_home
+            print "android.build_tools_version = 34.0.0"
+            print "android.api = 34"
+            print "android.minapi = 21"
+            print "android.ndk_api = 21"
+            print "android.arch = arm64-v8a"
+            next
+          }
+          
+          /^\[/ {
+            if (in_buildozer) { in_buildozer = 0; buildozer_done = 1 }
+            if (in_android) { in_android = 0; android_done = 1 }
+          }
+          
+          in_buildozer && /^log_level = / { next }
+          in_android && /^android\./ { next }
+          
+          { print }
+          
+          END {
+            if (!buildozer_done) {
+              print "\n[buildozer]"
+              print "log_level = 2"
+            }
+            if (!android_done) {
+              print "\n[android]"
+              print "android.ndk_path = " ndk_home
+              print "android.sdk_path = " sdk_home
+              print "android.build_tools_version = 34.0.0"
+              print "android.api = 34"
+              print "android.minapi = 21"
+              print "android.ndk_api = 21"
+              print "android.arch = arm64-v8a"
+            }
+          }
+          ' buildozer.spec.bak > "$TEMP_FILE"
+          
+          # Replace original with processed file
+          mv "$TEMP_FILE" buildozer.spec
+          
+          # Verify the changes
+          echo "=== Updated buildozer.spec ==="
+          cat buildozer.spec
           
           # Run update after configuration
           buildozer android update || true
