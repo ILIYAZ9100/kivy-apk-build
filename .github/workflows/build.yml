@@ -34,23 +34,42 @@ jobs:
             libsqlite3-dev \
             libreadline-dev \
             libffi-dev \
-            libbz2-dev
+            libbz2-dev \
+            unzip \
+            zip
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          cmdline-tools-version: 'latest'
+          build-tools-version: '34.0.0'
+          platform-version: '34'
+          ndk-version: '25b'
+          cmake-version: '3.22.1'
+
+      - name: Accept Android licenses
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
       - name: Install Buildozer and dependencies
         run: |
           python -m pip install --upgrade pip
           pip install cython==0.29.36 buildozer
 
-      - name: Initialize Buildozer (if needed)
+      - name: Initialize Buildozer
         run: |
           if [ ! -f buildozer.spec ]; then
             buildozer init
-            # Apply optimized buildozer.spec configuration
-            curl -o buildozer.spec https://gist.githubusercontent.com/example/optimized-buildozer-spec/raw/main/buildozer.spec
+            # Apply optimized configuration
+            echo -e "[android]\nandroid.ndk_path = $ANDROID_HOME/ndk/25b\nandroid.sdk_path = $ANDROID_HOME" >> buildozer.spec
+            echo "android.archs = arm64-v8a,armeabi-v7a" >> buildozer.spec
+            echo "android.minapi = 21" >> buildozer.spec
+            echo "android.sdk = 34" >> buildozer.spec
           fi
 
       - name: Build APK
         run: |
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/build-tools/34.0.0
           buildozer -v android debug
           # Check if APK was built successfully
           if [ ! -f bin/*.apk ]; then
@@ -63,7 +82,7 @@ jobs:
         run: |
           echo "Built APK details:"
           ls -lh bin/*.apk
-          aapt dump badging bin/*.apk | grep -E "package:|launchable-activity:"
+          $ANDROID_HOME/build-tools/34.0.0/aapt dump badging bin/*.apk | grep -E "package:|launchable-activity:"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -79,6 +98,6 @@ jobs:
         with:
           name: build-logs
           path: |
-            .buildozer/android/platform/build-armeabi-v7a/dists/myapp/build/outputs/apk/debug/*.log
+            .buildozer/android/platform/build-*/dists/*/build/outputs/apk/debug/*.log
             buildozer.spec
           retention-days: 5
