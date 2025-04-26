@@ -23,7 +23,7 @@ jobs:
           sudo apt-get install -y \
             python3-dev \
             build-essential \
-            openjdk-17-jdk \
+            openjdk-11-jdk \  # Changed from openjdk-17 to openjdk-11
             zlib1g-dev \
             libncurses5-dev \
             libgdbm-dev \
@@ -36,16 +36,28 @@ jobs:
             unzip \
             zip
 
+      - name: Set Java 11 as default
+        run: |
+          sudo update-java-alternatives --set java-1.11.0-openjdk-amd64
+          echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> $GITHUB_ENV
+
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v2
+        run: |
+          mkdir -p $ANDROID_HOME
+          cd $ANDROID_HOME
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip commandlinetools-linux-*.zip
+          rm commandlinetools-linux-*.zip
+          mkdir cmdline-tools
+          mv tools cmdline-tools/latest
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0" >> $GITHUB_PATH
 
       - name: Install Android components
         run: |
-          yes | $ANDROID_HOME/tools/bin/sdkmanager --install "cmdline-tools;latest"
-          yes | $ANDROID_HOME/tools/bin/sdkmanager --install "build-tools;34.0.0"
-          yes | $ANDROID_HOME/tools/bin/sdkmanager --install "platforms;android-34"
-          yes | $ANDROID_HOME/tools/bin/sdkmanager --install "ndk;25b"
-          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-34"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25b"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
       - name: Verify Android tools
         run: |
@@ -70,7 +82,6 @@ jobs:
 
       - name: Build APK
         run: |
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/build-tools/34.0.0
           buildozer -v android debug
 
       - name: Upload APK
