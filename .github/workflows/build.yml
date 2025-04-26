@@ -38,25 +38,21 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v2
-        with:
-          cmdline-tools-version: 'latest'
-          build-tools-version: '34.0.0'
-          platform-version: '34'
-          ndk-version: '25b'
 
-      - name: Accept Android licenses
+      - name: Install Android components
         run: |
-          mkdir -p ~/.android
-          touch ~/.android/repositories.cfg
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0" "platforms;android-34" --verbose
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --install "cmdline-tools;latest"
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --install "build-tools;34.0.0"
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --install "platforms;android-34"
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --install "ndk;25b"
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses
 
       - name: Verify Android tools
         run: |
           echo "Android tools:"
           ls $ANDROID_HOME/build-tools/34.0.0/
           echo "Aidl path:"
-          which aidl || find $ANDROID_HOME -name aidl
+          ls $ANDROID_HOME/build-tools/34.0.0/aidl
 
       - name: Install Buildozer
         run: |
