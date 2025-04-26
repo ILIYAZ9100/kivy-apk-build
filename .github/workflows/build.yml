@@ -8,23 +8,31 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
         with:
-          python-version: '3.9'
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install buildozer
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential git python3-pip python3-dev \
+            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+            libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
+            zlib1g-dev libgstreamer1.0-dev ffmpeg openjdk-17-jdk
+
+          pip3 install --upgrade pip
+          pip3 install buildozer
 
       - name: Build APK
         run: |
-          buildozer init
-          buildozer android debug
+          buildozer android debug --no-daemon
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v3
