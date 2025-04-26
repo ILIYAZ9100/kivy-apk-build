@@ -32,6 +32,8 @@ jobs:
 
       - name: Upload APK artifact
       - uses: actions/upload-artifact@v3.1.2
-       with:
-         name: my-artifact
-         path: path/to/file/or/directory
+  with:
+    name: build-output
+    path: dist/
+    if-no-files-found: error
+    retention-days: 5
