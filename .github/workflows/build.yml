@@ -1,44 +1,50 @@
       - name: Initialize Buildozer environment
         run: |
-          # Initialize fresh if no spec file exists
-          if [ ! -f buildozer.spec ]; then
-            buildozer init
-          fi
+          # Completely remove any existing spec file to start fresh
+          rm -f buildozer.spec
           
-          # Create a clean temporary spec file
-          TEMP_SPEC=$(mktemp)
+          # Initialize a brand new spec file
+          buildozer init
           
-          # Process existing file or create new one
-          {
-            # Keep all existing content except our target sections
-            if [ -f buildozer.spec ]; then
-              awk '
-              /^\[buildozer\]/ { in_buildozer=1; next }
-              /^\[android\]/ { in_android=1; next }
-              /^\[/ { in_buildozer=0; in_android=0 }
-              in_buildozer || in_android { next }
-              { print }
-              ' buildozer.spec
-            fi
+          # Create a clean new spec file with our exact configuration
+          cat << 'EOF' > buildozer.spec
+[app]
+title = My Application
+package.name = myapp
+package.domain = org.example
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas
+version = 0.1
+requirements = python3,kivy
+orientation = portrait
+fullscreen = 0
+
+[buildozer]
+log_level = 2
+warn_on_root = 1
+
+[android]
+android.ndk_path = $ANDROID_NDK_HOME
+android.sdk_path = $ANDROID_HOME
+android.build_tools_version = 34.0.0
+android.api = 34
+android.minapi = 21
+android.ndk_api = 21
+android.arch = arm64-v8a
+android.permissions = INTERNET
+android.allow_backup = True
+android.accept_sdk_license = True
+EOF
+
+          # Replace environment variables in the spec file
+          sed -i "s|\$ANDROID_NDK_HOME|$ANDROID_NDK_HOME|g" buildozer.spec
+          sed -i "s|\$ANDROID_HOME|$ANDROID_HOME|g" buildozer.spec
           
-            # Add our standardized configuration
-            echo -e "\n[buildozer]\nlog_level = 2"
-            echo -e "\n[android]"
-            echo "android.ndk_path = $ANDROID_NDK_HOME"
-            echo "android.sdk_path = $ANDROID_HOME"
-            echo "android.build_tools_version = 34.0.0"
-            echo "android.api = 34"
-            echo "android.minapi = 21"
-            echo "android.ndk_api = 21"
-            echo "android.arch = arm64-v8a"
-          } > "$TEMP_SPEC"
-          
-          # Replace original file
-          mv "$TEMP_SPEC" buildozer.spec
-          
-          # Verify the configuration
-          echo "=== Final buildozer.spec ==="
+          # Verify the file was created correctly
+          echo "=== buildozer.spec contents ==="
           cat buildozer.spec
+          echo "=== File size ==="
+          ls -la buildozer.spec
           
           # Initialize the environment
           buildozer android update || true
