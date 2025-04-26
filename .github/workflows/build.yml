@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Needed for proper version detection
+          fetch-depth: 0
 
       - name: Set up Python 3.9
         uses: actions/setup-python@v4
@@ -90,11 +90,9 @@ jobs:
 
       - name: Initialize Buildozer environment
         run: |
-          # First run to initialize p4a
           buildozer init || true
           buildozer android update || true
           
-          # Proper spec configuration
           if [ ! -f buildozer.spec ]; then
             buildozer init
           fi
@@ -119,7 +117,6 @@ EOF
           export ANDROID_HOME=$ANDROID_HOME
           export ANDROID_NDK_HOME=$ANDROID_NDK_HOME
           
-          # Clean and build with full logging
           buildozer android clean 2>&1 | tee clean.log || true
           buildozer -v android debug 2>&1 | tee build.log
           
