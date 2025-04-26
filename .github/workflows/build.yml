@@ -7,7 +7,7 @@ on:
 
 env:
   ANDROID_HOME: /usr/local/lib/android/sdk
-  ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/25b
+  ANDROID_NDK_VERSION: 25.2.9519653
 
 jobs:
   build:
@@ -51,12 +51,10 @@ jobs:
           mkdir -p $ANDROID_HOME
           cd $ANDROID_HOME
           
-          # Download command line tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools-linux-*.zip
           rm commandlinetools-linux-*.zip
           
-          # Create proper directory structure
           mkdir -p cmdline-tools/latest
           mv cmdline-tools/* cmdline-tools/latest/ || true
           mv lib/ cmdline-tools/latest/ || true
@@ -71,41 +69,39 @@ jobs:
           mkdir -p ~/.android
           touch ~/.android/repositories.cfg
           
-          # Accept licenses
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null 2>&1
           
-          # Install components
+          # Install platform tools and build tools first
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
             "platform-tools" \
             "build-tools;34.0.0" \
             "platforms;android-34" \
-            "ndk;25b" \
             "cmake;3.22.1"
+            
+          # Install specific NDK version
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;$ANDROID_NDK_VERSION"
+          
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> $GITHUB_ENV
 
-      - name: Verify environment
+      - name: Verify NDK installation
         run: |
-          echo "=== Java Version ==="
-          java -version
-          echo "\n=== Android Tools ==="
-          ls $ANDROID_HOME/cmdline-tools/latest/bin/
-          echo "\n=== Build Tools ==="
-          ls $ANDROID_HOME/build-tools/34.0.0/
-          echo "\n=== NDK ==="
-          ls $ANDROID_HOME/ndk/25b
+          echo "Installed NDK versions:"
+          ls $ANDROID_HOME/ndk/
+          echo "\nUsing NDK version: $ANDROID_NDK_VERSION"
+          ls $ANDROID_NDK_HOME
 
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
           pip install --no-cache-dir cython==0.29.36 buildozer
 
-      - name: Initialize Buildozer
+      - name: Configure Buildozer
         run: |
           if [ ! -f buildozer.spec ]; then
             buildozer init
             echo -e "\n[buildozer]\nlog_level = 2" >> buildozer.spec
           fi
           
-          # Update buildozer.spec with correct paths
           sed -i '/^\[android\]/,$d' buildozer.spec
           echo -e "\n[android]\nandroid.ndk_path = $ANDROID_NDK_HOME" >> buildozer.spec
           echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
@@ -117,18 +113,13 @@ jobs:
 
       - name: Build APK
         run: |
-          # Set environment variables
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0
           export ANDROID_HOME=$ANDROID_HOME
           export ANDROID_NDK_HOME=$ANDROID_NDK_HOME
           
-          # Clean previous builds
           buildozer android clean
-          
-          # Build with verbose output
           buildozer -v android debug 2>&1 | tee build.log
           
-          # Check build result
           if [ ! -f bin/*.apk ]; then
             echo "Build failed! Check logs above"
             exit 1
