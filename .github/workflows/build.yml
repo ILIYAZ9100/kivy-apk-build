@@ -91,6 +91,7 @@ jobs:
         awk '!/android.sdk_path =/' buildozer.spec > temp && mv temp buildozer.spec
         awk '!/android.build_tools_version =/' buildozer.spec > temp && mv temp buildozer.spec
         awk '!/requirements =/' buildozer.spec > temp && mv temp buildozer.spec
+        awk '!/android.enable_androidx =/' buildozer.spec > temp && mv temp buildozer.spec
 
         echo "android.allow_backup = True" >> buildozer.spec
         echo "android.archs = arm64-v8a,armeabi-v7a" >> buildozer.spec
@@ -100,6 +101,7 @@ jobs:
         echo "android.sdk_path = $HOME/android-sdk" >> buildozer.spec
         echo "android.build_tools_version = 31.0.0" >> buildozer.spec
         echo "requirements = python3,kivy==2.1.0" >> buildozer.spec
+        echo "android.enable_androidx = False" >> buildozer.spec
 
     - name: Build APK
       run: |
@@ -112,16 +114,28 @@ jobs:
 
         # Debug environment
         echo "ANDROID_HOME=$ANDROID_HOME"
+        echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
         echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
         ls -l $HOME/android-sdk/build-tools/
         ls -l $HOME/android-sdk/ndk/
 
-        buildozer -v android debug
+        # Ensure gradlew is executable
+        if [ -f .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/dists/calculatorapp/gradlew ]; then
+          chmod +x .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/dists/calculatorapp/gradlew
+        else
+          echo "gradlew not found!"
+          exit 1
+        fi
 
+        # Run buildozer with verbose output
+        buildozer -v android debug 2>&1 | tee buildozer.log
+
+        # Check for APK
         if [ ! -f bin/*.apk ]; then
           echo "Build failed! Showing logs:"
           cat .buildozer/android/platform/build-*/build.out || true
           cat .buildozer/android/platform/build-*/build.err || true
+          cat buildozer.log || true
           exit 1
         fi
 
