@@ -25,6 +25,7 @@ android.build_tools_version = 31.0.0
 android.archs = arm64-v8a,armeabi-v7a
 android.allow_backup = True
 android.accept_sdk_license = True
+android.enable_androidx = False
 
 # No permissions required for this calculator app
 android.permissions =
