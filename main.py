@@ -1,166 +1,94 @@
-{
- "cells": [
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "# 🚀 Kivy App to APK with Buildozer (Colab Ready, Error-Free)"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "# 🛠️ 1. Install system dependencies\n",
-    "!sudo apt update -y\n",
-    "!sudo apt install -y python3-pip build-essential git python3-dev ffmpeg \\\n",
-    "libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \\\n",
-    "libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \\\n",
-    "zlib1g-dev libgstreamer1.0-dev openjdk-17-jdk unzip"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "# 🛠️ 2. Install Buildozer and Cython\n",
-    "!pip install --upgrade pip\n",
-    "!pip install cython==0.29.36\n",
-    "!pip install buildozer"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "# 📂 3. Upload your Kivy files\n",
-    "from google.colab import files\n",
-    "print(\"Please upload your main.py and any other required files:\")\n",
-    "uploaded = files.upload()"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "# 🏗️ 4. Initialize Buildozer (only if spec doesn't exist)\n",
-    "import os\n",
-    "if not os.path.exists('buildozer.spec'):\n",
-    "    !buildozer init\n",
-    "    print(\"✅ buildozer.spec created\")\n",
-    "else:\n",
-    "    print(\"ℹ️ buildozer.spec already exists - skipping init\")"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "# ✍️ 5. Configure buildozer.spec with optimal Android settings\n",
-    "import re\n",
-    "\n",
-    "def update_spec():\n",
-    "    with open('buildozer.spec', 'r') as file:\n",
-    "        spec = file.read()\n",
-    "\n",
-    "    # Update requirements\n",
-    "    if 'requirements =' not in spec:\n",
-    "        spec = re.sub(r'(^requirements\\s*=.*$)', 'requirements = python3,kivy', spec, flags=re.M)\n",
-    "    \n",
-    "    # Update Android settings\n",
-    "    updates = {\n",
-    "        '# android.api =': 'android.api = 31',\n",
-    "        '# android.minapi =': 'android.minapi = 21',\n",
-    "        '# android.ndk_api =': 'android.ndk_api = 21',\n",
-    "        '# android.archs =': 'android.archs = arm64-v8a,armeabi-v7a',\n",
-    "        '# android.accept_sdk_license =': 'android.accept_sdk_license = True'\n",
-    "    }\n",
-    "\n",
-    "    for old, new in updates.items():\n",
-    "        spec = spec.replace(old, new)\n",
-    "\n",
-    "    with open('buildozer.spec', 'w') as file:\n",
-    "        file.write(spec)\n",
-    "    \n",
-    "    print('✅ buildozer.spec updated with:')\n",
-    "    for line in updates.values():\n",
-    "        print(f\" - {line}\")\n",
-    "\n",
-    "update_spec()"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "# 📦 6. Build the APK (this may take ~15-30 minutes)\n",
-    "print(\"🚀 Starting APK build process...\")\n",
-    "!buildozer -v android debug 2>&1 | tee build.log\n",
-    "print(\"\\nBuild completed! Check build.log for details.\")"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "# 🔍 7. Check build results\n",
-    "import glob\n",
-    "print(\"Build results:\")\n",
-    "print(\"=\"*50)\n",
-    "!ls -la bin/\n",
-    "print(\"=\"*50)\n",
-    "\n",
-    "# 📥 8. Download the APK if successful\n",
-    "apk_files = glob.glob('bin/*.apk')\n",
-    "if apk_files:\n",
-    "    print(f\"\\n🎉 APK built successfully: {apk_files[0]}\")\n",
-    "    from google.colab import files\n",
-    "    files.download(apk_files[0])\n",
-    "else:\n",
-    "    print('\\n❌ APK build failed. Common issues:')\n",
-    "    print(\"1. Missing dependencies in requirements\")\n",
-    "    print(\"2. Incorrect Android SDK setup\")\n",
-    "    print(\"3. Python code errors\")\n",
-    "    print(\"Check build.log above for details.\")"
-   ]
-  }
- ],
- "metadata": {
-  "colab": {
-   "provenance": []
-  },
-  "kernelspec": {
-   "display_name": "Python 3",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.8.5"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 4
-}
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.textinput import TextInput
+from kivy.core.window import Window
+from kivy.uix.label import Label
+from kivy.uix.popup import Popup
+
+class CalculatorApp(App):
+    def build(self):
+        self.operators = ["/", "*", "+", "-"]
+        self.last_was_operator = None
+        self.last_button = None
+        self.result = Label(text="", font_size=32, halign="right", valign="center")
+        self.result.bind(size=self.result.setter('text_size'))
+        
+        layout = BoxLayout(orientation="vertical", spacing=10, padding=10)
+        
+        self.solution = TextInput(
+            multiline=False, readonly=True, halign="right", font_size=55
+        )
+        layout.add_widget(self.solution)
+        layout.add_widget(self.result)
+        
+        buttons = [
+            ["7", "8", "9", "/"],
+            ["4", "5", "6", "*"],
+            ["1", "2", "3", "-"],
+            [".", "0", "C", "+"],
+        ]
+        
+        for row in buttons:
+            h_layout = BoxLayout(spacing=10)
+            for label in row:
+                button = Button(
+                    text=label,
+                    pos_hint={"center_x": 0.5, "center_y": 0.5},
+                )
+                button.bind(on_press=self.on_button_press)
+                h_layout.add_widget(button)
+            layout.add_widget(h_layout)
+        
+        equals_button = Button(
+            text="=", pos_hint={"center_x": 0.5, "center_y": 0.5}
+        )
+        equals_button.bind(on_press=self.on_solution)
+        layout.add_widget(equals_button)
+        
+        return layout
+
+    def on_button_press(self, instance):
+        current = self.solution.text
+        button_text = instance.text
+        
+        if button_text == "C":
+            self.solution.text = ""
+            self.result.text = ""
+        else:
+            if current and (
+                self.last_was_operator and button_text in self.operators
+            ):
+                return
+            elif current == "" and button_text in self.operators:
+                return
+            else:
+                new_text = current + button_text
+                self.solution.text = new_text
+        self.last_button = button_text
+        self.last_was_operator = self.last_button in self.operators
+
+    def on_solution(self, instance):
+        text = self.solution.text
+        try:
+            if text:
+                # Replace unicode characters with Python operators
+                expression = text.replace("×", "*").replace("÷", "/")
+                solution = str(eval(expression))
+                self.result.text = solution
+                self.solution.text = solution
+        except Exception as e:
+            self.show_error_popup(str(e))
+            self.solution.text = ""
+            self.result.text = ""
+
+    def show_error_popup(self, error_message):
+        content = Label(text=f"Error: {error_message}")
+        popup = Popup(title="Calculation Error", 
+                     content=content,
+                     size_hint=(0.8, 0.4))
+        popup.open()
+
+if __name__ == "__main__":
+    app = CalculatorApp()
+    app.run()
