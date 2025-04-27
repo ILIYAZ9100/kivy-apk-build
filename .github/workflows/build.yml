@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-22.04  # Using LTS version for better compatibility
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     
@@ -17,7 +17,14 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y git zip unzip openjdk-8-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
-        pip install buildozer==1.5.0 cython virtualenv
+        pip install buildozer cython virtualenv
+        
+    - name: Fix buildozer.spec duplicates
+      run: |
+        # Remove duplicate android.allow_backup entries
+        awk '!/android.allow_backup =/' buildozer.spec > temp && mv temp buildozer.spec
+        # Add single instance at the end
+        echo "android.allow_backup = True" >> buildozer.spec
         
     - name: Build APK
       run: |
