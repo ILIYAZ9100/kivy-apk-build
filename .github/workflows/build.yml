@@ -71,15 +71,26 @@ jobs:
         echo "ANDROID_NDK_HOME=$HOME/android-sdk/ndk/23.1.7779620" >> $GITHUB_ENV
         echo "PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/31.0.0" >> $GITHUB_ENV
 
-        pip install buildozer==1.5.0 cython==0.29.36 virtualenv
+        pip install buildozer==1.5.0 cython==0.29.36 kivy==2.1.0 virtualenv
 
     - name: Update buildozer.spec
       run: |
+        # Check if buildozer.spec exists, initialize if missing
+        if [ ! -f buildozer.spec ]; then
+          echo "buildozer.spec not found, initializing..."
+          buildozer init
+        fi
+
         # Clean and update buildozer.spec
         awk '!/android.allow_backup =/' buildozer.spec > temp && mv temp buildozer.spec
         awk '!/android.arch =/' buildozer.spec > temp && mv temp buildozer.spec
         awk '!/android.archs =/' buildozer.spec > temp && mv temp buildozer.spec
-        awk '!/android.api =/' [...]
+        awk '!/android.api =/' buildozer.spec > temp && mv temp buildozer.spec
+        awk '!/android.ndk =/' buildozer.spec > temp && mv temp buildozer.spec
+        awk '!/android.ndk_path =/' buildozer.spec > temp && mv temp buildozer.spec
+        awk '!/android.sdk_path =/' buildozer.spec > temp && mv temp buildozer.spec
+        awk '!/android.build_tools_version =/' buildozer.spec > temp && mv temp buildozer.spec
+        awk '!/requirements =/' buildozer.spec > temp && mv temp buildozer.spec
 
         echo "android.allow_backup = True" >> buildozer.spec
         echo "android.archs = arm64-v8a,armeabi-v7a" >> buildozer.spec
@@ -88,6 +99,7 @@ jobs:
         echo "android.ndk_path = $HOME/android-sdk/ndk/23.1.7779620" >> buildozer.spec
         echo "android.sdk_path = $HOME/android-sdk" >> buildozer.spec
         echo "android.build_tools_version = 31.0.0" >> buildozer.spec
+        echo "requirements = python3,kivy==2.1.0" >> buildozer.spec
 
     - name: Build APK
       run: |
