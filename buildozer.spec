@@ -47,3 +47,6 @@ warn_on_root = 1
 
 # Use SDL2 bootstrap for Kivy
 p4a.bootstrap = sdl2
+
+# Ensure compatibility with Python-for-Android
+p4a.branch = stable
