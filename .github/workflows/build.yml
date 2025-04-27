@@ -22,21 +22,19 @@ jobs:
           python3-pip \
           autoconf libtool pkg-config \
           zlib1g-dev libncurses-dev \
-          cmake libffi-dev libssl-dev
+          cmake libffi-dev libssl-dev \
+          aapt aidl
         
-        # Setup Android SDK with proper directory structure
-        mkdir -p ~/android-sdk/cmdline-tools/latest
+        # Setup Android SDK
+        mkdir -p ~/android-sdk
         cd ~/android-sdk
         wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        unzip commandlinetools-linux-9477386_latest.zip -d tmp
+        unzip -o commandlinetools-linux-9477386_latest.zip -d tmp
         rm commandlinetools-linux-9477386_latest.zip
         
-        # Handle both possible directory structures
-        if [ -d "tmp/cmdline-tools" ]; then
-          mv tmp/cmdline-tools/* cmdline-tools/latest/
-        else
-          mv tmp/* cmdline-tools/latest/
-        fi
+        # Create proper directory structure
+        mkdir -p cmdline-tools/latest
+        mv tmp/cmdline-tools/* cmdline-tools/latest/ || mv tmp/* cmdline-tools/latest/
         rm -rf tmp
         
         # Verify installation
@@ -46,20 +44,17 @@ jobs:
           exit 1
         fi
         
-        # Accept licenses
+        # Accept licenses FIRST
         yes | ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
         
-        # Install components
+        # Install specific working versions
         ~/android-sdk/cmdline-tools/latest/bin/sdkmanager \
           "platform-tools" \
           "platforms;android-31" \
           "build-tools;31.0.0" \
           "ndk;23.1.7779620"
         
-        # Install AIDL
-        sudo apt-get install -y aapt aidl
-        
-        # Set environment
+        # Set environment variables
         echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
         echo "ANDROID_NDK_HOME=$HOME/android-sdk/ndk/23.1.7779620" >> $GITHUB_ENV
         echo "PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/31.0.0" >> $GITHUB_ENV
@@ -68,10 +63,11 @@ jobs:
         
     - name: Update buildozer.spec
       run: |
-        # Clean and update buildozer.spec using individual echo commands
+        # Clean configuration
         awk '!/android.allow_backup =/' buildozer.spec > temp && mv temp buildozer.spec
         awk '!/android.arch =/' buildozer.spec > temp && mv temp buildozer.spec
         
+        # Add verified configurations
         echo "android.allow_backup = True" >> buildozer.spec
         echo "android.archs = armeabi-v7a" >> buildozer.spec
         echo "android.sdk_path = $HOME/android-sdk" >> buildozer.spec
@@ -83,14 +79,17 @@ jobs:
         
     - name: Build APK
       run: |
+        # Clean environment
         rm -rf .buildozer || true
         
         # Verify tools
         which aidl || { echo "AIDL not found!"; exit 1; }
         which aapt || { echo "AAPT not found!"; exit 1; }
         
+        # Build with debug output
         buildozer -v android debug
         
+        # Verify build succeeded
         if [ ! -f bin/*.apk ]; then
           echo "Build failed! Showing logs:"
           cat .buildozer/android/platform/build-*/build.out
