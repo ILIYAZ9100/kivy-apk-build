@@ -68,20 +68,18 @@ jobs:
         
     - name: Update buildozer.spec
       run: |
-        # Clean and update buildozer.spec
+        # Clean and update buildozer.spec using individual echo commands
         awk '!/android.allow_backup =/' buildozer.spec > temp && mv temp buildozer.spec
         awk '!/android.arch =/' buildozer.spec > temp && mv temp buildozer.spec
         
-        cat <<EOF >> buildozer.spec
-android.allow_backup = True
-android.archs = armeabi-v7a
-android.sdk_path = $HOME/android-sdk
-android.ndk_path = $HOME/android-sdk/ndk/23.1.7779620
-android.accept_sdk_license = True
-android.sdk_version = 31
-android.build_tools_version = 31.0.0
-android.build_tools_dir = $HOME/android-sdk/build-tools/31.0.0
-EOF
+        echo "android.allow_backup = True" >> buildozer.spec
+        echo "android.archs = armeabi-v7a" >> buildozer.spec
+        echo "android.sdk_path = $HOME/android-sdk" >> buildozer.spec
+        echo "android.ndk_path = $HOME/android-sdk/ndk/23.1.7779620" >> buildozer.spec
+        echo "android.accept_sdk_license = True" >> buildozer.spec
+        echo "android.sdk_version = 31" >> buildozer.spec
+        echo "android.build_tools_version = 31.0.0" >> buildozer.spec
+        echo "android.build_tools_dir = $HOME/android-sdk/build-tools/31.0.0" >> buildozer.spec
         
     - name: Build APK
       run: |
