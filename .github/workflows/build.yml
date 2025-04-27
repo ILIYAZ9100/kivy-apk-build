@@ -1,18 +1,24 @@
 name: Build Android APK
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-    
+
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -22,16 +28,15 @@ jobs:
           python3-pip \
           autoconf libtool pkg-config \
           zlib1g-dev libncurses-dev \
-          cmake libffi-dev libssl-dev \
-          aapt
-        
+          cmake libffi-dev libssl-dev
+
         # Install Android Command Line Tools
         mkdir -p ~/android-sdk/cmdline-tools/latest
         cd ~/android-sdk
-        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        unzip -o commandlinetools-linux-9477386_latest.zip -d tmp
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        unzip -q commandlinetools-linux-9477386_latest.zip -d tmp
         rm commandlinetools-linux-9477386_latest.zip
-        
+
         # Move files to correct location
         if [ -d "tmp/cmdline-tools" ]; then
           mv tmp/cmdline-tools/* cmdline-tools/latest/
@@ -39,71 +44,66 @@ jobs:
           mv tmp/* cmdline-tools/latest/
         fi
         rm -rf tmp
-        
+
         # Verify installation
         if [ ! -f "cmdline-tools/latest/bin/sdkmanager" ]; then
           echo "Android SDK tools not properly installed!"
           ls -R cmdline-tools/
           exit 1
         fi
-        
-        # Create license directory and accept licenses
-        mkdir -p ~/.android
-        echo '### User Sources for Android SDK Manager' > ~/.android/repositories.cfg
-        mkdir -p ~/.android/licenses
-        echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e" > ~/.android/licenses/android-sdk-license
-        echo -e "84831b9409646a918e30573bab4c9c91346d8abd" > ~/.android/licenses/android-sdk-preview-license
-        
+
+        # Accept all SDK licenses
+        yes | ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
+
         # Install required components
-        ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --install \
+        ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --install \
           "platform-tools" \
-          "platforms;android-31" \
-          "build-tools;31.0.0" \
-          "ndk;23.1.7779620"
-        
-        # Install AIDL from package
-        sudo apt-get install -y aidl
-        
+          "platforms;android-36" \
+          "build-tools;36.0.0" \
+          "ndk;25.2.9519653"
+
         # Set environment variables
+        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
         echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "ANDROID_NDK_HOME=$HOME/android-sdk/ndk/23.1.7779620" >> $GITHUB_ENV
-        echo "PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/31.0.0" >> $GITHUB_ENV
-        
-        pip install buildozer==1.5.0 cython virtualenv
-        
+        echo "ANDROID_NDK_HOME=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
+        echo "PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/36.0.0" >> $GITHUB_ENV
+
+        pip install buildozer==1.6.0 cython==0.29.36 virtualenv
+
     - name: Update buildozer.spec
       run: |
         # Clean and update buildozer.spec
         awk '!/android.allow_backup =/' buildozer.spec > temp && mv temp buildozer.spec
         awk '!/android.arch =/' buildozer.spec > temp && mv temp buildozer.spec
-        
+        awk '!/android.archs =/' buildozer.spec > temp && mv temp buildozer.spec
+
         echo "android.allow_backup = True" >> buildozer.spec
-        echo "android.archs = armeabi-v7a" >> buildozer.spec
+        echo "android.archs = arm64-v8a,armeabi-v7a" >> buildozer.spec
+        echo "android.api = 36" >> buildozer.spec
+        echo "android.ndk = 25.2.9519653" >> buildozer.spec
+        echo "android.ndk_path = $HOME/android-sdk/ndk/25.2.9519653" >> buildozer.spec
         echo "android.sdk_path = $HOME/android-sdk" >> buildozer.spec
-        echo "android.ndk_path = $HOME/android-sdk/ndk/23.1.7779620" >> buildozer.spec
-        echo "android.accept_sdk_license = True" >> buildozer.spec
-        echo "android.sdk_version = 31" >> buildozer.spec
-        echo "android.build_tools_version = 31.0.0" >> buildozer.spec
-        echo "android.build_tools_dir = $HOME/android-sdk/build-tools/31.0.0" >> buildozer.spec
-        
+        echo "android.build_tools_version = 36.0.0" >> buildozer.spec
+
     - name: Build APK
       run: |
         rm -rf .buildozer || true
-        
+
         # Verify tools
-        which aidl || { echo "AIDL not found!"; exit 1; }
-        which aapt || { echo "AAPT not found!"; exit 1; }
-        
+        which aidl || { echo "AIDL not found in build-tools!"; exit 1; }
+        which aapt || { echo "AAPT not found in build-tools!"; exit 1; }
+        which sdkmanager || { echo "sdkmanager not found!"; exit 1; }
+
         buildozer -v android debug
-        
+
         if [ ! -f bin/*.apk ]; then
           echo "Build failed! Showing logs:"
-          cat .buildozer/android/platform/build-*/build.out
+          cat .buildozer/android/platform/build-*/build.out || true
           exit 1
         fi
-        
+
         ls -la bin/
-        
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
