@@ -30,6 +30,9 @@ jobs:
           zlib1g-dev libncurses-dev \
           cmake libffi-dev libssl-dev
 
+        # Upgrade pip
+        pip install --upgrade pip
+
         # Install Android Command Line Tools
         mkdir -p ~/android-sdk/cmdline-tools/latest
         cd ~/android-sdk
@@ -68,7 +71,7 @@ jobs:
         echo "ANDROID_NDK_HOME=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
         echo "PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/36.0.0" >> $GITHUB_ENV
 
-        pip install buildozer==1.6.0 cython==0.29.36 virtualenv
+        pip install buildozer==1.5.0 cython==0.29.36 virtualenv
 
     - name: Update buildozer.spec
       run: |
