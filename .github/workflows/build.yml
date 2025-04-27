@@ -22,7 +22,8 @@ jobs:
           python3-pip \
           autoconf libtool pkg-config \
           zlib1g-dev libncurses-dev \
-          cmake libffi-dev libssl-dev
+          cmake libffi-dev libssl-dev \
+          android-sdk-platform-tools-common
         
         # Clean previous Android SDK installation if exists
         rm -rf ~/android-sdk || true
@@ -53,12 +54,16 @@ jobs:
           "platform-tools" \
           "platforms;android-31" \
           "build-tools;31.0.0" \
-          "ndk;23.1.7779620"
+          "ndk;23.1.7779620" \
+          "cmdline-tools;latest"
+        
+        # Explicitly install aidl
+        sudo apt-get install -y aapt aidl
         
         # Setup environment
         echo "export ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
         echo "export ANDROID_NDK_HOME=$HOME/android-sdk/ndk/23.1.7779620" >> $GITHUB_ENV
-        echo "export PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools" >> $GITHUB_ENV
+        echo "export PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/31.0.0" >> $GITHUB_ENV
         
         pip install buildozer==1.5.0 cython virtualenv
         
@@ -76,11 +81,16 @@ jobs:
         echo "android.accept_sdk_license = True" >> buildozer.spec
         echo "android.sdk_version = 31" >> buildozer.spec
         echo "android.build_tools_version = 31.0.0" >> buildozer.spec
+        echo "android.build_tools_dir = $HOME/android-sdk/build-tools/31.0.0" >> buildozer.spec
         
     - name: Build APK
       run: |
         # Clean environment
         rm -rf .buildozer || true
+        
+        # Verify Android tools are available
+        which aidl || (echo "AIDL not found!"; exit 1)
+        which aapt || (echo "AAPT not found!"; exit 1)
         
         # Build with verbose output
         buildozer -v android debug
