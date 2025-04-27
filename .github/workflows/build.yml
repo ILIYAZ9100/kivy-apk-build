@@ -34,10 +34,22 @@ jobs:
         unzip commandlinetools-linux-9477386_latest.zip
         rm commandlinetools-linux-9477386_latest.zip
         
-        # Create cmdline-tools directory structure
-        mkdir -p cmdline-tools/latest
-        mv tools/* cmdline-tools/latest/
-        rm -rf tools
+        # Create proper cmdline-tools directory structure
+        if [ -d "tools" ]; then
+          mkdir -p cmdline-tools/latest
+          mv tools/* cmdline-tools/latest/
+          rmdir tools
+        else
+          # Handle case where unzip creates different structure
+          mkdir -p cmdline-tools/latest
+          mv * cmdline-tools/latest/ 2>/dev/null || true
+        fi
+        
+        # Verify tools were moved correctly
+        if [ ! -d "cmdline-tools/latest/bin" ]; then
+          echo "Error: Android command line tools not properly installed!"
+          exit 1
+        fi
         
         # Accept all licenses first
         yes | ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
