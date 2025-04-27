@@ -26,15 +26,18 @@ jobs:
           aapt aidl
         
         # Setup Android SDK
-        mkdir -p ~/android-sdk
+        mkdir -p ~/android-sdk/cmdline-tools/latest
         cd ~/android-sdk
         wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
         unzip -o commandlinetools-linux-9477386_latest.zip -d tmp
         rm commandlinetools-linux-9477386_latest.zip
         
-        # Create proper directory structure
-        mkdir -p cmdline-tools/latest
-        mv tmp/cmdline-tools/* cmdline-tools/latest/ || mv tmp/* cmdline-tools/latest/
+        # Handle directory structure
+        if [ -d "tmp/cmdline-tools" ]; then
+          mv tmp/cmdline-tools/* cmdline-tools/latest/
+        else
+          mv tmp/* cmdline-tools/latest/
+        fi
         rm -rf tmp
         
         # Verify installation
@@ -44,17 +47,20 @@ jobs:
           exit 1
         fi
         
-        # Accept licenses FIRST
-        yes | ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+        # Pre-accept licenses
+        mkdir -p ~/.android
+        echo '### User Sources for Android SDK Manager' > ~/.android/repositories.cfg
+        echo -e '\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e' > ~/.android/licenses/android-sdk-license
+        echo -e '84831b9409646a918e30573bab4c9c91346d8abd' > ~/.android/licenses/android-sdk-preview-license
         
-        # Install specific working versions
-        ~/android-sdk/cmdline-tools/latest/bin/sdkmanager \
+        # Install components with license pre-accepted
+        ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --install \
           "platform-tools" \
           "platforms;android-31" \
           "build-tools;31.0.0" \
           "ndk;23.1.7779620"
         
-        # Set environment variables
+        # Set environment
         echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
         echo "ANDROID_NDK_HOME=$HOME/android-sdk/ndk/23.1.7779620" >> $GITHUB_ENV
         echo "PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/31.0.0" >> $GITHUB_ENV
@@ -63,11 +69,10 @@ jobs:
         
     - name: Update buildozer.spec
       run: |
-        # Clean configuration
+        # Clean and update buildozer.spec
         awk '!/android.allow_backup =/' buildozer.spec > temp && mv temp buildozer.spec
         awk '!/android.arch =/' buildozer.spec > temp && mv temp buildozer.spec
         
-        # Add verified configurations
         echo "android.allow_backup = True" >> buildozer.spec
         echo "android.archs = armeabi-v7a" >> buildozer.spec
         echo "android.sdk_path = $HOME/android-sdk" >> buildozer.spec
@@ -79,17 +84,14 @@ jobs:
         
     - name: Build APK
       run: |
-        # Clean environment
         rm -rf .buildozer || true
         
         # Verify tools
         which aidl || { echo "AIDL not found!"; exit 1; }
         which aapt || { echo "AAPT not found!"; exit 1; }
         
-        # Build with debug output
         buildozer -v android debug
         
-        # Verify build succeeded
         if [ ! -f bin/*.apk ]; then
           echo "Build failed! Showing logs:"
           cat .buildozer/android/platform/build-*/build.out
