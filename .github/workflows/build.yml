@@ -22,8 +22,10 @@ jobs:
           python3-pip \
           autoconf libtool pkg-config \
           zlib1g-dev libncurses-dev \
-          cmake libffi-dev libssl-dev \
-          android-sdk
+          cmake libffi-dev libssl-dev
+        
+        # Clean previous Android SDK installation if exists
+        rm -rf ~/android-sdk || true
         
         # Setup Android SDK
         mkdir -p ~/android-sdk
@@ -31,8 +33,11 @@ jobs:
         wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
         unzip commandlinetools-linux-9477386_latest.zip
         rm commandlinetools-linux-9477386_latest.zip
-        mkdir cmdline-tools
-        mv tools cmdline-tools/latest
+        
+        # Create cmdline-tools directory structure
+        mkdir -p cmdline-tools/latest
+        mv tools/* cmdline-tools/latest/
+        rm -rf tools
         
         # Accept all licenses first
         yes | ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
