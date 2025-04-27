@@ -18,22 +18,31 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y \
           git zip unzip \
-          openjdk-8-jdk \
+          openjdk-11-jdk \
           python3-pip \
           autoconf libtool pkg-config \
           zlib1g-dev libncurses-dev \
-          cmake libffi-dev libssl-dev \
-          aidl
+          cmake libffi-dev libssl-dev
         
-        # Install Android SDK components
-        mkdir -p ~/android-sdk
-        cd ~/android-sdk
-        wget https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip
-        unzip commandlinetools-linux-8512546_latest.zip
-        rm commandlinetools-linux-8512546_latest.zip
-        yes | ./cmdline-tools/bin/sdkmanager --sdk_root=~/android-sdk "platform-tools" "platforms;android-30" "build-tools;30.0.3"
-        echo "export ANDROID_SDK_ROOT=~/android-sdk" >> ~/.bashrc
-        source ~/.bashrc
+        # Create Android SDK directory
+        mkdir -p ~/android-sdk/cmdline-tools
+        cd ~/android-sdk/cmdline-tools
+        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        unzip commandlinetools-linux-9477386_latest.zip
+        rm commandlinetools-linux-9477386_latest.zip
+        mv cmdline-tools latest
+        
+        # Accept licenses and install components
+        yes | ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+        ~/android-sdk/cmdline-tools/latest/bin/sdkmanager \
+          "platform-tools" \
+          "platforms;android-33" \
+          "build-tools;33.0.0" \
+          "ndk;25.1.8937393"
+        
+        # Set environment variables
+        echo "export ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "export PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools" >> $GITHUB_ENV
         
         pip install buildozer==1.5.0 cython virtualenv
         
@@ -47,7 +56,8 @@ jobs:
         echo "android.allow_backup = True" >> buildozer.spec
         echo "android.archs = armeabi-v7a" >> buildozer.spec
         echo "android.sdk_path = $HOME/android-sdk" >> buildozer.spec
-        echo "android.ndk_path = $HOME/.buildozer/android/platform/android-ndk-r25b" >> buildozer.spec
+        echo "android.ndk_path = $HOME/android-sdk/ndk/25.1.8937393" >> buildozer.spec
+        echo "android.accept_sdk_license = True" >> buildozer.spec
         
     - name: Build APK
       run: |
