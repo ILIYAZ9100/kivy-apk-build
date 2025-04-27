@@ -13,7 +13,7 @@ jobs:
       with:
         python-version: '3.10'
     
-    - name: Install Android SDK and dependencies
+    - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
@@ -23,79 +23,65 @@ jobs:
           autoconf libtool pkg-config \
           zlib1g-dev libncurses-dev \
           cmake libffi-dev libssl-dev \
-          android-sdk-platform-tools-common
+          android-sdk
         
-        # Clean previous Android SDK installation if exists
-        rm -rf ~/android-sdk || true
-        
-        # Setup Android SDK
-        mkdir -p ~/android-sdk/cmdline-tools/latest
-        cd ~/android-sdk
+        # Install Android Command Line Tools
+        mkdir -p ~/android-sdk/cmdline-tools
+        cd ~/android-sdk/cmdline-tools
         wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        unzip -o commandlinetools-linux-9477386_latest.zip -d tmp
+        unzip commandlinetools-linux-9477386_latest.zip
         rm commandlinetools-linux-9477386_latest.zip
+        mv cmdline-tools latest
         
-        # Move contents to proper location
-        mv tmp/cmdline-tools/* cmdline-tools/latest/
-        rm -rf tmp
-        
-        # Verify tools were moved correctly
-        if [ ! -f "cmdline-tools/latest/bin/sdkmanager" ]; then
-          echo "Error: Android command line tools not properly installed!"
-          ls -R cmdline-tools/latest/
-          exit 1
-        fi
-        
-        # Accept all licenses first
+        # Accept licenses BEFORE installing components
         yes | ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
         
-        # Install specific versions that work well with Buildozer
+        # Install specific working versions
         ~/android-sdk/cmdline-tools/latest/bin/sdkmanager \
           "platform-tools" \
           "platforms;android-31" \
           "build-tools;31.0.0" \
-          "ndk;23.1.7779620" \
-          "cmdline-tools;latest"
+          "ndk;23.1.7779620"
         
-        # Explicitly install aidl
+        # Install AIDL explicitly
         sudo apt-get install -y aapt aidl
         
-        # Setup environment
+        # Set environment variables
         echo "export ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "export ANDROID_NDK_HOME=$HOME/android-sdk/ndk/23.1.7779620" >> $GITHUB_ENV
-        echo "export PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/31.0.0" >> $GITHUB_ENV
+        echo "export PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools" >> $GITHUB_ENV
         
         pip install buildozer==1.5.0 cython virtualenv
         
     - name: Update buildozer.spec
       run: |
-        # Clean up spec file
+        # Clean configuration
         awk '!/android.allow_backup =/' buildozer.spec > temp && mv temp buildozer.spec
         awk '!/android.arch =/' buildozer.spec > temp && mv temp buildozer.spec
         
-        # Add verified working configurations
-        echo "android.allow_backup = True" >> buildozer.spec
-        echo "android.archs = armeabi-v7a" >> buildozer.spec
-        echo "android.sdk_path = $HOME/android-sdk" >> buildozer.spec
-        echo "android.ndk_path = $HOME/android-sdk/ndk/23.1.7779620" >> buildozer.spec
-        echo "android.accept_sdk_license = True" >> buildozer.spec
-        echo "android.sdk_version = 31" >> buildozer.spec
-        echo "android.build_tools_version = 31.0.0" >> buildozer.spec
-        echo "android.build_tools_dir = $HOME/android-sdk/build-tools/31.0.0" >> buildozer.spec
+        # Add verified configurations
+        cat <<EOF >> buildozer.spec
+android.allow_backup = True
+android.archs = armeabi-v7a
+android.sdk_path = $HOME/android-sdk
+android.ndk_path = $HOME/android-sdk/ndk/23.1.7779620
+android.accept_sdk_license = True
+android.sdk_version = 31
+android.build_tools_version = 31.0.0
+EOF
         
     - name: Build APK
       run: |
-        # Clean environment
+        # Clean previous builds
         rm -rf .buildozer || true
         
-        # Verify Android tools are available
+        # Verify tools
         which aidl || (echo "AIDL not found!"; exit 1)
         which aapt || (echo "AAPT not found!"; exit 1)
         
-        # Build with verbose output
+        # Build with debug output
         buildozer -v android debug
         
-        # Verify build succeeded
+        # Verify APK
         if [ ! -f bin/*.apk ]; then
           echo "Build failed! Showing logs:"
           cat .buildozer/android/platform/build-*/build.out
