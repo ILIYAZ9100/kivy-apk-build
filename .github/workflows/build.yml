@@ -22,18 +22,19 @@ jobs:
           python3-pip \
           autoconf libtool pkg-config \
           zlib1g-dev libncurses-dev \
-          cmake libffi-dev libssl-dev \
-          android-sdk
+          cmake libffi-dev libssl-dev
         
-        # Install Android Command Line Tools
-        mkdir -p ~/android-sdk/cmdline-tools
-        cd ~/android-sdk/cmdline-tools
+        # Setup Android SDK
+        mkdir -p ~/android-sdk
+        cd ~/android-sdk
         wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
         unzip commandlinetools-linux-9477386_latest.zip
         rm commandlinetools-linux-9477386_latest.zip
-        mv cmdline-tools latest
+        mkdir -p cmdline-tools/latest
+        mv tools/* cmdline-tools/latest/
+        rmdir tools
         
-        # Accept licenses BEFORE installing components
+        # Accept licenses non-interactively
         yes | ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
         
         # Install specific working versions
@@ -43,12 +44,13 @@ jobs:
           "build-tools;31.0.0" \
           "ndk;23.1.7779620"
         
-        # Install AIDL explicitly
+        # Install AIDL from package
         sudo apt-get install -y aapt aidl
         
         # Set environment variables
-        echo "export ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "export PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools" >> $GITHUB_ENV
+        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "ANDROID_NDK_HOME=$HOME/android-sdk/ndk/23.1.7779620" >> $GITHUB_ENV
+        echo "PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/31.0.0" >> $GITHUB_ENV
         
         pip install buildozer==1.5.0 cython virtualenv
         
@@ -67,6 +69,7 @@ android.ndk_path = $HOME/android-sdk/ndk/23.1.7779620
 android.accept_sdk_license = True
 android.sdk_version = 31
 android.build_tools_version = 31.0.0
+android.build_tools_dir = $HOME/android-sdk/build-tools/31.0.0
 EOF
         
     - name: Build APK
@@ -75,8 +78,8 @@ EOF
         rm -rf .buildozer || true
         
         # Verify tools
-        which aidl || (echo "AIDL not found!"; exit 1)
-        which aapt || (echo "AAPT not found!"; exit 1)
+        which aidl || { echo "AIDL not found!"; exit 1; }
+        which aapt || { echo "AAPT not found!"; exit 1; }
         
         # Build with debug output
         buildozer -v android debug
